@@ -1,1 +1,4 @@
-
+school_id,school_name,student_id,grade,attendance_before,attendance_after,test_score_before,test_score_after,meal_calories,meal_protein_g,meal_days_per_week,health_incidents_before,health_incidents_after
+1,Green Valley Primary,1001,4,0.75,0.88,65,72,450,15,4,3,1
+1,Green Valley Primary,1002,4,0.82,0.91,58,68,450,15,4,2,0
+2,Sunnyside Academy,2001,5,0.68,0.85,62,75,480,18,5,4,1
