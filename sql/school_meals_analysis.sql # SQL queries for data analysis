@@ -1,1 +1,19 @@
+-- School Meals Impact Analysis
+-- Calculate average attendance improvement
+SELECT 
+    school_name,
+    ROUND(AVG(attendance_after - attendance_before) * 100, 1) as attendance_improvement_pct,
+    ROUND(AVG(test_score_after - test_score_before), 1) as test_score_improvement
+FROM school_meals_data
+GROUP BY school_name;
 
+-- Nutritional adequacy analysis
+SELECT 
+    CASE 
+        WHEN meal_calories >= 450 AND meal_protein_g >= 15 THEN 'Adequate'
+        ELSE 'Needs Improvement'
+    END as nutritional_rating,
+    COUNT(*) as student_count,
+    ROUND(AVG(test_score_improvement), 1) as avg_score_improvement
+FROM school_meals_data
+GROUP BY nutritional_rating;
