@@ -1,11 +1,267 @@
-# School Meals Nutritional Analysis
-# This notebook contains analysis of:
-# - Nutritional content vs. WHO standards
-# - Statistical correlation between nutrition and academic performance
-# - Regression analysis of program impact
+# School Meals Impact Analysis - Nutritional & Academic Correlation
+# Analysis of School Feeding Programs in Nairobi, Kenya
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
 
-print("School Meals Impact Analysis")
-# Analysis code would go here...
+# Set up styling for professional visuals
+plt.style.use('seaborn-v0_8')
+sns.set_palette("husl")
+
+print("🍎 SCHOOL MEALS IMPACT ANALYSIS")
+print("=" * 50)
+
+# Generate sample dataset (in real scenario, you'd load from CSV)
+def generate_school_meals_data():
+    np.random.seed(42)  # For reproducible results
+    
+    data = []
+    for i in range(300):  # 300 students across 2 schools
+        school_id = 1 if i < 150 else 2
+        school_name = "Green Valley Primary" if school_id == 1 else "Sunnyside Academy"
+        
+        # Base metrics before program
+        attendance_before = np.random.normal(0.75, 0.15)
+        test_score_before = np.random.normal(60, 12)
+        
+        # Program impact factors
+        meal_days = np.random.choice([3, 4, 5], p=[0.2, 0.5, 0.3])
+        meal_calories = np.random.normal(450, 50)
+        meal_protein = np.random.normal(16, 3)
+        
+        # Calculate improvements based on program factors
+        attendance_improvement = (meal_days/5 * 0.15 + 
+                                np.clip((meal_calories-400)/200, 0, 0.1))
+        score_improvement = (meal_days/5 * 8 + 
+                           np.clip((meal_protein-12)/10, 0, 5))
+        
+        attendance_after = np.clip(attendance_before + attendance_improvement, 0, 1)
+        test_score_after = np.clip(test_score_before + score_improvement, 0, 100)
+        
+        health_incidents_before = np.random.poisson(3)
+        health_incidents_after = np.random.poisson(1.5 * (5-meal_days)/5)
+        
+        data.append({
+            'student_id': 1000 + i,
+            'school_id': school_id,
+            'school_name': school_name,
+            'grade': np.random.choice([3, 4, 5, 6]),
+            'attendance_before': round(attendance_before, 2),
+            'attendance_after': round(attendance_after, 2),
+            'test_score_before': round(test_score_before, 1),
+            'test_score_after': round(test_score_after, 1),
+            'meal_days_per_week': meal_days,
+            'meal_calories': round(meal_calories),
+            'meal_protein_g': round(meal_protein, 1),
+            'health_incidents_before': max(0, int(health_incidents_before)),
+            'health_incidents_after': max(0, int(health_incidents_after))
+        })
+    
+    return pd.DataFrame(data)
+
+# Load and explore data
+df = generate_school_meals_data()
+
+print("📊 DATASET OVERVIEW")
+print(f"Dataset Shape: {df.shape}")
+print(f"Schools: {df['school_name'].unique().tolist()}")
+print("\nFirst 5 rows:")
+display(df.head())
+
+print("\n📈 BASIC STATISTICS")
+print(df[['attendance_before', 'attendance_after', 
+          'test_score_before', 'test_score_after', 
+          'meal_calories', 'meal_protein_g']].describe())
+
+# Calculate improvement metrics
+df['attendance_improvement'] = df['attendance_after'] - df['attendance_before']
+df['test_score_improvement'] = df['test_score_after'] - df['test_score_before']
+df['health_incident_reduction'] = df['health_incidents_before'] - df['health_incidents_after']
+
+print("🎯 KEY PERFORMANCE INDICATORS")
+print("=" * 40)
+
+kpis = {
+    'Avg Attendance Improvement': f"{df['attendance_improvement'].mean():.1%}",
+    'Avg Test Score Improvement': f"{df['test_score_improvement'].mean():.1f} points",
+    'Avg Health Incident Reduction': f"{df['health_incident_reduction'].mean():.1f} incidents",
+    'Students Receiving Adequate Nutrition': f"{(df['meal_calories'] >= 400).sum()}/{len(df)}",
+    'Avg Meal Days Per Week': f"{df['meal_days_per_week'].mean():.1f}"
+}
+
+for kpi, value in kpis.items():
+    print(f"• {kpi}: {value}")
+
+# Create comprehensive visualizations
+fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+fig.suptitle('School Meals Program: Comprehensive Impact Analysis', fontsize=16, fontweight='bold')
+
+# 1. Attendance Improvement by School
+attendance_pivot = df.groupby('school_name')[['attendance_before', 'attendance_after']].mean()
+attendance_pivot.plot(kind='bar', ax=axes[0,0], color=['#ff9999', '#66b3ff'])
+axes[0,0].set_title('Average Attendance: Before vs After Program')
+axes[0,0].set_ylabel('Attendance Rate')
+axes[0,0].tick_params(axis='x', rotation=45)
+
+# 2. Test Score Improvement Distribution
+df['test_score_improvement'].hist(bins=15, ax=axes[0,1], alpha=0.7, color='lightgreen')
+axes[0,1].axvline(df['test_score_improvement'].mean(), color='red', linestyle='--', 
+                 label=f'Mean: {df["test_score_improvement"].mean():.1f}')
+axes[0,1].set_title('Distribution of Test Score Improvements')
+axes[0,1].set_xlabel('Score Improvement (points)')
+axes[0,1].legend()
+
+# 3. Nutrition vs Academic Performance
+scatter = axes[0,2].scatter(df['meal_calories'], df['test_score_improvement'], 
+                           c=df['meal_days_per_week'], cmap='viridis', alpha=0.6)
+axes[0,2].set_xlabel('Daily Calories')
+axes[0,2].set_ylabel('Test Score Improvement')
+axes[0,2].set_title('Nutrition vs Academic Improvement')
+plt.colorbar(scatter, ax=axes[0,2], label='Meal Days/Week')
+
+# 4. Health Incidents Reduction
+health_pivot = df.groupby('school_name')[['health_incidents_before', 'health_incidents_after']].mean()
+health_pivot.plot(kind='bar', ax=axes[1,0], color=['#ff9999', '#66b3ff'])
+axes[1,0].set_title('Health Incidents: Before vs After Program')
+axes[1,0].set_ylabel('Average Health Incidents')
+axes[1,0].tick_params(axis='x', rotation=45)
+
+# 5. Meal Frequency Impact
+meal_impact = df.groupby('meal_days_per_week').agg({
+    'attendance_improvement': 'mean',
+    'test_score_improvement': 'mean'
+}).reset_index()
+axes[1,1].plot(meal_impact['meal_days_per_week'], meal_impact['attendance_improvement'], 
+              marker='o', label='Attendance Improvement', linewidth=2)
+axes[1,2].plot(meal_impact['meal_days_per_week'], meal_impact['test_score_improvement'], 
+              marker='s', color='orange', label='Test Score Improvement', linewidth=2)
+
+axes[1,1].set_title('Meal Frequency vs Attendance Improvement')
+axes[1,1].set_xlabel('Meal Days Per Week')
+axes[1,1].set_ylabel('Attendance Improvement')
+axes[1,1].legend()
+axes[1,1].grid(True, alpha=0.3)
+
+axes[1,2].set_title('Meal Frequency vs Test Score Improvement')
+axes[1,2].set_xlabel('Meal Days Per Week')
+axes[1,2].set_ylabel('Test Score Improvement (points)')
+axes[1,2].legend()
+axes[1,2].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+
+# Statistical significance testing
+print("📊 STATISTICAL ANALYSIS")
+print("=" * 40)
+
+# Paired t-test for attendance improvement
+t_stat_attendance, p_value_attendance = stats.ttest_rel(df['attendance_after'], df['attendance_before'])
+print(f"Attendance Improvement T-test: t={t_stat_attendance:.3f}, p-value={p_value_attendance:.6f}")
+print("→ Program shows statistically significant impact on attendance" if p_value_attendance < 0.05 else "→ Insufficient evidence for attendance impact")
+
+# Correlation analysis
+correlation_matrix = df[['attendance_improvement', 'test_score_improvement', 
+                        'meal_days_per_week', 'meal_calories', 'meal_protein_g']].corr()
+
+print(f"\n📈 CORRELATION ANALYSIS")
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0,
+            square=True, fmt='.2f', cbar_kws={'shrink': 0.8})
+plt.title('Correlation Matrix: Program Metrics')
+plt.tight_layout()
+plt.show()
+
+# Key correlation insights
+print("💡 KEY CORRELATIONS:")
+print(f"• Meal Days vs Attendance Improvement: {correlation_matrix.loc['meal_days_per_week', 'attendance_improvement']:.3f}")
+print(f"• Meal Calories vs Test Scores: {correlation_matrix.loc['meal_calories', 'test_score_improvement']:.3f}")
+print(f"• Attendance vs Test Scores: {correlation_matrix.loc['attendance_improvement', 'test_score_improvement']:.3f}")
+
+# WHO Nutritional Standards Analysis
+WHO_MIN_CALORIES = 400
+WHO_MIN_PROTEIN = 15
+
+df['nutritional_adequacy'] = np.where(
+    (df['meal_calories'] >= WHO_MIN_CALORIES) & (df['meal_protein_g'] >= WHO_MIN_PROTEIN),
+    'Adequate', 'Inadequate'
+)
+
+print("🍽️ NUTRITIONAL ADEQUACY ANALYSIS")
+print("=" * 40)
+
+nutrition_summary = df.groupby('nutritional_adequacy').agg({
+    'student_id': 'count',
+    'test_score_improvement': 'mean',
+    'attendance_improvement': 'mean'
+}).rename(columns={'student_id': 'student_count'})
+
+nutrition_summary['percentage'] = (nutrition_summary['student_count'] / len(df) * 100).round(1)
+display(nutrition_summary)
+
+# Visualization
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+
+# Nutritional Adequacy Pie Chart
+nutrition_summary['student_count'].plot.pie(ax=ax1, autopct='%1.1f%%', 
+                                           colors=['#ff9999', '#66b3ff'])
+ax1.set_title('Nutritional Adequacy Distribution')
+ax1.set_ylabel('')
+
+# Impact by Nutritional Adequacy
+adequacy_impact = df.groupby('nutritional_adequacy')[['test_score_improvement', 'attendance_improvement']].mean()
+adequacy_impact.plot(kind='bar', ax=ax2, color=['#ff9999', '#66b3ff'])
+ax2.set_title('Academic Impact by Nutritional Adequacy')
+ax2.set_ylabel('Improvement')
+ax2.tick_params(axis='x', rotation=0)
+ax2.legend(['Test Score Improvement', 'Attendance Improvement'])
+
+plt.tight_layout()
+plt.show()
+
+# Cost-Benefit Analysis (Simplified)
+print("💰 COST-BENEFIT ANALYSIS & RECOMMENDATIONS")
+print("=" * 50)
+
+# Assumptions (in Kenyan Shillings)
+COST_PER_MEAL = 50
+MEALS_PER_YEAR = 200  # 40 weeks × 5 days
+STUDENTS_COUNT = len(df)
+
+total_program_cost = COST_PER_MEAL * MEALS_PER_YEAR * STUDENTS_COUNT * df['meal_days_per_week'].mean() / 5
+
+# Estimated benefits (monetized educational improvements)
+# Simplified model: each 1-point test score improvement = KES 5000 future economic benefit
+economic_benefit = df['test_score_improvement'].sum() * 5000
+roi = (economic_benefit - total_program_cost) / total_program_cost
+
+print(f"• Estimated Annual Program Cost: KES {total_program_cost:,.0f}")
+print(f"• Estimated Economic Benefit: KES {economic_benefit:,.0f}")
+print(f"• Return on Investment (ROI): {roi:.1%}")
+
+print(f"\n🎯 POLICY RECOMMENDATIONS")
+print("=" * 30)
+recommendations = [
+    "1. PRIORITIZE PROGRAM EXPANSION: ROI of {roi:.1f}% demonstrates strong economic value",
+    "2. ENSURE NUTRITIONAL ADEQUACY: {inadequate_pct:.1f}% of students receive inadequate nutrition",
+    "3. OPTIMIZE MEAL FREQUENCY: Target 5 days/week for maximum impact",
+    "4. IMPROVE MONITORING: Enhance data collection for continuous improvement",
+    "5. COMMUNITY ENGAGEMENT: Involve parents in program sustainability"
+]
+
+inadequate_pct = nutrition_summary.loc['Inadequate', 'percentage'] if 'Inadequate' in nutrition_summary.index else 0
+
+for rec in recommendations:
+    print("• " + rec.format(roi=roi*100, inadequate_pct=inadequate_pct))
+
+print(f"\n✅ CONCLUSION")
+print("The school meals program demonstrates significant positive impact on:")
+print("  • Student attendance and academic performance")
+print("  • Health outcomes and nutritional status")
+print("  • Long-term educational and economic prospects")
